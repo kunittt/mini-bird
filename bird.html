@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Bird Animation</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f5f7fb;
+      font-family: sans-serif;
+    }
+
+    .wrap {
+      width: 320px;
+      text-align: center;
+    }
+
+    svg {
+      width: 220px;
+      height: 220px;
+      overflow: visible;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .hint {
+      margin-top: 12px;
+      color: #667085;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <svg id="character" viewBox="0 0 200 200" aria-label="animated character">
+      <!-- shadow -->
+      <ellipse id="shadow" cx="100" cy="172" rx="42" ry="10" fill="#d9dfeb"></ellipse>
+
+      <!-- body group -->
+      <g id="bodyGroup">
+        <!-- body -->
+        <ellipse cx="100" cy="108" rx="52" ry="58" fill="#58cc6c"></ellipse>
+        <ellipse cx="100" cy="122" rx="34" ry="26" fill="#7be08a"></ellipse>
+
+        <!-- wings -->
+        <ellipse id="leftWing" cx="58" cy="112" rx="16" ry="28" fill="#46b95a"></ellipse>
+        <ellipse id="rightWing" cx="142" cy="112" rx="16" ry="28" fill="#46b95a"></ellipse>
+
+        <!-- eyes -->
+        <g id="eyes">
+          <ellipse cx="82" cy="90" rx="12" ry="16" fill="#fff"></ellipse>
+          <ellipse cx="118" cy="90" rx="12" ry="16" fill="#fff"></ellipse>
+
+          <circle id="pupilL" cx="84" cy="94" r="5" fill="#1f2937"></circle>
+          <circle id="pupilR" cx="120" cy="94" r="5" fill="#1f2937"></circle>
+
+          <rect id="lidL" x="70" y="74" width="24" height="0" rx="8" fill="#58cc6c"></rect>
+          <rect id="lidR" x="106" y="74" width="24" height="0" rx="8" fill="#58cc6c"></rect>
+        </g>
+
+        <!-- beak -->
+        <polygon id="beak" points="100,102 90,114 110,114" fill="#ffb020"></polygon>
+
+        <!-- brows -->
+        <line id="browL" x1="72" y1="68" x2="92" y2="64" stroke="#2f8f41" stroke-width="4" stroke-linecap="round"></line>
+        <line id="browR" x1="108" y1="64" x2="128" y2="68" stroke="#2f8f41" stroke-width="4" stroke-linecap="round"></line>
+      </g>
+    </svg>
+
+    <div class="hint">click: jump / idle: float + blink + look around</div>
+  </div>
+
+  <script>
+    const animationData = {
+      float: {
+        amplitudeY: 4,
+        amplitudeRotate: 2.2,
+        speed: 0.0028
+      },
+      blink: {
+        minInterval: 1800,
+        maxInterval: 4200,
+        closeMs: 90,
+        openMs: 130
+      },
+      lookAround: {
+        interval: 2400,
+        radius: 3
+      },
+      jump: {
+        duration: 520,
+        height: 18
+      }
+    };
+
+    const svg = document.getElementById("character");
+    const bodyGroup = document.getElementById("bodyGroup");
+    const shadow = document.getElementById("shadow");
+    const pupilL = document.getElementById("pupilL");
+    const pupilR = document.getElementById("pupilR");
+    const lidL = document.getElementById("lidL");
+    const lidR = document.getElementById("lidR");
+    const beak = document.getElementById("beak");
+    const browL = document.getElementById("browL");
+    const browR = document.getElementById("browR");
+    const leftWing = document.getElementById("leftWing");
+    const rightWing = document.getElementById("rightWing");
+
+    let isBlinking = false;
+    let isJumping = false;
+    let lookTarget = { x: 0, y: 0 };
+    let lastLookChange = 0;
+    let jumpStart = 0;
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function scheduleBlink() {
+      const delay = rand(animationData.blink.minInterval, animationData.blink.maxInterval);
+      setTimeout(() => {
+        blink();
+        scheduleBlink();
+      }, delay);
+    }
+
+    function blink() {
+      if (isJumping) return;
+      isBlinking = true;
+
+      lidL.setAttribute("height", "18");
+      lidR.setAttribute("height", "18");
+
+      setTimeout(() => {
+        lidL.setAttribute("height", "0");
+        lidR.setAttribute("height", "0");
+
+        setTimeout(() => {
+          isBlinking = false;
+        }, animationData.blink.openMs);
+      }, animationData.blink.closeMs);
+    }
+
+    function setPupilOffset(x, y) {
+      pupilL.setAttribute("cx", 84 + x);
+      pupilL.setAttribute("cy", 94 + y);
+      pupilR.setAttribute("cx", 120 + x);
+      pupilR.setAttribute("cy", 94 + y);
+    }
+
+    function setHappyFace(t) {
+      const bob = Math.sin(t * 0.03) * 1.5;
+
+      beak.setAttribute("points", `100,102 89,114 ${100},${116 + bob} 111,114`);
+      browL.setAttribute("x1", "72");
+      browL.setAttribute("y1", "66");
+      browL.setAttribute("x2", "92");
+      browL.setAttribute("y2", "68");
+      browR.setAttribute("x1", "108");
+      browR.setAttribute("y1", "68");
+      browR.setAttribute("x2", "128");
+      browR.setAttribute("y2", "66");
+    }
+
+    function setNormalFace() {
+      beak.setAttribute("points", "100,102 90,114 110,114");
+      browL.setAttribute("x1", "72");
+      browL.setAttribute("y1", "68");
+      browL.setAttribute("x2", "92");
+      browL.setAttribute("y2", "64");
+      browR.setAttribute("x1", "108");
+      browR.setAttribute("y1", "64");
+      browR.setAttribute("x2", "128");
+      browR.setAttribute("y2", "68");
+    }
+
+    function animate(now) {
+      const t = now;
+      const { amplitudeY, amplitudeRotate, speed } = animationData.float;
+
+      if (t - lastLookChange > animationData.lookAround.interval && !isJumping) {
+        lookTarget = {
+          x: rand(-animationData.lookAround.radius, animationData.lookAround.radius),
+          y: rand(-2, 2)
+        };
+        lastLookChange = t;
+      }
+
+      let floatY = Math.sin(t * speed) * amplitudeY;
+      let rotate = Math.sin(t * speed * 0.8) * amplitudeRotate;
+      let wingSwing = Math.sin(t * speed * 1.4) * 3;
+
+      if (isJumping) {
+        const elapsed = t - jumpStart;
+        const p = Math.min(elapsed / animationData.jump.duration, 1);
+        const arc = Math.sin(p * Math.PI) * animationData.jump.height;
+        floatY -= arc;
+        rotate += Math.sin(p * Math.PI) * 8;
+        wingSwing += Math.sin(p * Math.PI) * 10;
+        setHappyFace(t);
+
+        if (p >= 1) {
+          isJumping = false;
+          setNormalFace();
+        }
+      }
+
+      bodyGroup.setAttribute(
+        "transform",
+        `translate(0 ${floatY.toFixed(2)}) rotate(${rotate.toFixed(2)} 100 110)`
+      );
+
+      shadow.setAttribute("rx", String(42 - Math.abs(floatY) * 0.8));
+
+      leftWing.setAttribute(
+        "transform",
+        `rotate(${(-8 - wingSwing).toFixed(2)} 58 112)`
+      );
+      rightWing.setAttribute(
+        "transform",
+        `rotate(${(8 + wingSwing).toFixed(2)} 142 112)`
+      );
+
+      if (!isBlinking) {
+        setPupilOffset(lookTarget.x, lookTarget.y);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    svg.addEventListener("click", () => {
+      if (isJumping) return;
+      isJumping = true;
+      jumpStart = performance.now();
+      blink();
+    });
+
+    setNormalFace();
+    scheduleBlink();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
