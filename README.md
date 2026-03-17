@@ -1,1 +1,1 @@
-[Click here](https://uniola.github.io/mini-bird/)
+[Click here](https://uniola.github.io/mini-bird/bird.html)
